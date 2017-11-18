@@ -34,6 +34,8 @@ import io.swagger.annotations.ApiModelProperty;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 <%_ } if (databaseType === 'mongodb') { _%>
+import org.springframework.cloud.cloudfoundry.com.fasterxml.jackson.annotation.JsonBackReference;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -194,7 +196,7 @@ public class <%= entityClass %> implements Serializable {
 <%- formatAsFieldJavadoc(relationships[idx].javadoc) %>
     @ApiModelProperty(value = "<%- formatAsApiDescription(relationships[idx].javadoc) %>")
     <%_ }
-        if (relationshipType === 'one-to-many') {
+        if (relationshipType === 'one-to-many' && databaseType !== 'mongodb') {
     _%>
     @OneToMany(mappedBy = "<%= otherEntityRelationshipName %>")
     @JsonIgnore
@@ -207,41 +209,62 @@ public class <%= entityClass %> implements Serializable {
     } _%>
     private Set<<%= otherEntityNameCapitalized %>> <%= relationshipFieldNamePlural %> = new HashSet<>();
 
-    <%_ } else if (relationshipType === 'many-to-one') { _%>
+    <%_ } if (relationshipType === 'one-to-many' && databaseType === 'mongodb') {_%>
+    @DBRef
+    @JsonIgnore
+    @Field("<%= relationshipFieldNamePlural %>")
+    private Set<<%= otherEntityNameCapitalized %>> <%= relationshipFieldNamePlural %> = new HashSet<>();
+
+    <%_ }  else if (relationshipType === 'many-to-one' && databaseType !== 'mongodb') { _%>
     @ManyToOne<% if (relationshipRequired) { %>(optional = false)<% } %>
-        <%_ if (relationshipValidate) { _%>
+    <%_ if (relationshipValidate) { _%>
     <%- include relationship_validators -%>
-        <%_ }_%>
+    <%_ }_%>
     private <%= otherEntityNameCapitalized %> <%= relationshipFieldName %>;
 
-    <%_ } else if (relationshipType === 'many-to-many') { _%>
+    <%_ } else if (relationshipType === 'many-to-one' && databaseType === 'mongodb') { _%>
+    @Field("<%= relationshipFieldName %>")
+    private <%= otherEntityNameCapitalized %> <%= relationshipFieldName %>;
+
+    <%_ } else if (relationshipType === 'many-to-many' && databaseType !== 'mongodb') { _%>
     @ManyToMany<% if (ownerSide === false) { %>(mappedBy = "<%= otherEntityRelationshipNamePlural %>")
     @JsonIgnore<% } %>
-        <%_ if (hibernateCache !== 'no') {
-                if (hibernateCache === 'infinispan') { _%>
+    <%_ if (hibernateCache !== 'no') {
+        if (hibernateCache === 'infinispan') { _%>
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-            <%_ } else { _%>
+    <%_ } else { _%>
     @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
-            <%_ }
+    <%_ }
         } if (ownerSide === true) { _%>
-        <%_ if (relationshipValidate) { _%>
+    <%_ if (relationshipValidate) { _%>
     <%- include relationship_validators -%>
-        <%_ }_%>
+    <%_ }_%>
     @JoinTable(name = "<%= joinTableName %>",
-               joinColumns = @JoinColumn(name="<%= getPluralColumnName(name) %>_id", referencedColumnName="id"),
-               inverseJoinColumns = @JoinColumn(name="<%= getPluralColumnName(relationships[idx].relationshipName) %>_id", referencedColumnName="id"))
-        <%_ } _%>
+        joinColumns = @JoinColumn(name="<%= getPluralColumnName(name) %>_id", referencedColumnName="id"),
+        inverseJoinColumns = @JoinColumn(name="<%= getPluralColumnName(relationships[idx].relationshipName) %>_id", referencedColumnName="id"))
+    <%_ } _%>
+    private Set<<%= otherEntityNameCapitalized %>> <%= relationshipFieldNamePlural %> = new HashSet<>();
+    <%_ } else if (relationshipType === 'many-to-many' && databaseType === 'mongodb') { _%>
+    @DBRef<% if (ownerSide === false) { %>
+    @JsonIgnore<% } %>
+    @Field("<%= relationshipFieldNamePlural %>")
     private Set<<%= otherEntityNameCapitalized %>> <%= relationshipFieldNamePlural %> = new HashSet<>();
 
     <%_ } else { _%>
-        <%_ if (ownerSide) { _%>
+    <%_ if (ownerSide && databaseType !== 'mongodb') { _%>
     @OneToOne<% if (relationshipRequired) { %>(optional = false)<% } %>
-            <%_ if (relationshipValidate) { _%>
+    <%_ if (relationshipValidate) { _%>
     <%- include relationship_validators -%>
-            <%_ }_%>
+    <%_ }_%>
     @JoinColumn(unique = true)
-        <%_ } else { _%>
+    <%_ } else if (ownerSide && databaseType === 'mongodb') { _%>
+    @DBRef
+    @Field("<%= relationshipFieldName %>")
+    <%_ } else if(!ownerSide && databaseType !== 'mongodb'){ _%>
     @OneToOne(mappedBy = "<%= otherEntityRelationshipName %>")
+    @JsonIgnore
+    <%_ } else if(!ownerSide && databaseType === 'mongodb'){ _%>
+    @DBRef
     @JsonIgnore
         <%_ } _%>
     private <%= otherEntityNameCapitalized %> <%= relationshipFieldName %>;

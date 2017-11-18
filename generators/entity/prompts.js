@@ -190,7 +190,7 @@ function askForRelationships() {
     if (this.useConfigurationFile && this.updateEntity !== 'add') {
         return;
     }
-    if (this.databaseType === 'mongodb' || this.databaseType === 'cassandra') {
+    if (this.databaseType === 'cassandra') {
         return;
     }
 

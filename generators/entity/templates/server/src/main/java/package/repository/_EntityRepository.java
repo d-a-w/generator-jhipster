@@ -65,6 +65,7 @@ import java.util.UUID;<% } %>
 @SuppressWarnings("unused")
 @Repository
 public interface <%=entityClass%>Repository extends <% if (databaseType === 'sql') { %>JpaRepository<% } %><% if (databaseType === 'mongodb') { %>MongoRepository<% } %><<%=entityClass%>, <%= pkType %>><% if (jpaMetamodelFiltering) { %>, JpaSpecificationExecutor<<%=entityClass%>><% } %> {
+    <%_ if(databaseType === 'sql'){ _%>
     <%_ for (idx in relationships) {
         if (relationships[idx].relationshipType === 'many-to-one' && relationships[idx].otherEntityName === 'user') { _%>
 
@@ -79,7 +80,7 @@ public interface <%=entityClass%>Repository extends <% if (databaseType === 'sql
     @Query("select <%= entityTableName %> from <%= entityClass %> <%= entityTableName %><% for (idx in relationships) {
     if (relationships[idx].relationshipType === 'many-to-many' && relationships[idx].ownerSide === true) { %> left join fetch <%=entityTableName%>.<%=relationships[idx].relationshipFieldNamePlural%><%} }%> where <%=entityTableName%>.id =:id")
     <%=entityClass%> findOneWithEagerRelationships(@Param("id") Long id);
-    <%_ } _%>
+    <%_ } } _%>
 
 }
 <%_ } if (databaseType === 'cassandra') { _%>
